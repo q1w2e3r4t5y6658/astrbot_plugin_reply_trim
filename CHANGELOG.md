@@ -5,6 +5,13 @@
 
 ---
 
+## [1.3.1] - 2026-10-15
+
+### 文档
+- README / metadata 同步到 1.3.0 的最新行为（名单模式、引号保护、随机延迟、换行硬边界）
+
+---
+
 ## [1.3.0] - 2026-10-15
 
 ### 修复
@@ -80,6 +87,7 @@
 
 ---
 
+[1.3.1]: https://github.com/q1w2e3r4t5y6658/astrbot_plugin_reply_trim/releases/tag/v1.3.1
 [1.3.0]: https://github.com/q1w2e3r4t5y6658/astrbot_plugin_reply_trim/releases/tag/v1.3.0
 [1.2.2]: https://github.com/q1w2e3r4t5y6658/astrbot_plugin_reply_trim/releases/tag/v1.2.2
 [1.2.1]: https://github.com/q1w2e3r4t5y6658/astrbot_plugin_reply_trim/releases/tag/v1.2.1
