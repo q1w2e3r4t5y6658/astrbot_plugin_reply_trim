@@ -4,29 +4,23 @@
   "split_enable": { "type": "bool", "description": "按标点/换行分段发送", "default": true },
   "group_split_enable": { "type": "bool", "description": "群聊里也分段", "default": true },
   "private_split_enable": { "type": "bool", "description": "私聊里也分段", "default": true },
-  "list_mode": {
-    "type": "string",
-    "description": "会话名单模式",
-    "hint": "blacklist=黑名单里的会话不分段；whitelist=只有白名单里的会话分段（白名单留空=全部允许）",
-    "default": "blacklist",
-    "options": ["blacklist", "whitelist"]
-  },
   "blacklist": {
     "type": "list",
     "description": "不分段的会话（黑名单）",
     "hint": "填 群号 / 用户号 / 完整会话标识（如 aiocqhttp:GroupMessage:12345），可加多项",
     "default": []
   },
-  "whitelist": {
-    "type": "list",
-    "description": "只在这些会话里分段（白名单，需把上面模式切到 whitelist）",
-    "hint": "留空 = 全部会话都分段",
-    "default": []
+  "typing_enable": {
+    "type": "bool",
+    "description": "私聊补发前先发「正在输入」状态",
+    "hint": "走 OneBot 扩展动作 set_input_status（LLOneBot/NapCat 支持）。底层是 setPrivateInputStatus，所以只对私聊有效，群聊自动跳过",
+    "default": true
   },
+  "typing_event_type": { "type": "int", "description": "输入状态类型（1 一般是「正在输入」）", "hint": "如果 1 没效果，可以依次试 2、3", "default": 1 },
   "split_chars": {
     "type": "string",
     "description": "分段符号（在这些字符后面切段）",
-    "hint": "默认「。？！」，末尾的 \\n 代表换行（换行是硬分段，绝不合并）。用 \\n 表示换行符",
+    "hint": "默认「。？！」，末尾的以换行收尾（换行是硬分段，绝不合并）",
     "default": "。？！\n"
   },
   "drop_chars": {

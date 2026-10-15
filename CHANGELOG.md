@@ -5,6 +5,19 @@
 
 ---
 
+## [1.4.0] - 2026-10-15
+
+### 新增
+- **私聊「正在输入」**：补发下一段之前，先通过 OneBot 扩展动作 `set_input_status` 把机器人状态设为「正在输入」，再随机等 0.7~1.2 秒 —— 对方看到的就是「正在打字」然后消息冒出来
+  - 配置：`typing_enable`（默认开）、`typing_event_type`（默认 1）
+  - LLOneBot 8.x 的底层实现是 `setPrivateInputStatus`，**只对私聊有效**，群聊自动跳过
+  - 调用失败只记 DEBUG 日志，绝不影响正常发送
+
+### 变更
+- **移除白名单模式**：只保留黑名单（`blacklist`），配置更简单
+
+---
+
 ## [1.3.1] - 2026-10-15
 
 ### 文档
@@ -87,6 +100,7 @@
 
 ---
 
+[1.4.0]: https://github.com/q1w2e3r4t5y6658/astrbot_plugin_reply_trim/releases/tag/v1.4.0
 [1.3.1]: https://github.com/q1w2e3r4t5y6658/astrbot_plugin_reply_trim/releases/tag/v1.3.1
 [1.3.0]: https://github.com/q1w2e3r4t5y6658/astrbot_plugin_reply_trim/releases/tag/v1.3.0
 [1.2.2]: https://github.com/q1w2e3r4t5y6658/astrbot_plugin_reply_trim/releases/tag/v1.2.2

@@ -13,7 +13,8 @@
 - 某段太短（min_segment_len）→ 并进上一段，并把当时删掉的标点补回来
 - 看起来是代码/列表（``` / - / 1. / > 等）→ 整条不分段
 - 引号/括号内部不切（protect_quotes）
-- 群聊、私聊各自开关；名单（黑/白）里的会话按名单处理
+- 群聊、私聊各自开关；黑名单里的会话不分段
+- 私聊补发前会先发「正在输入」状态（typing_enable，仅私聊有效）
 """
 
 from __future__ import annotations
@@ -41,7 +42,7 @@ _QUOTE_CLOSERS = "”」』）)】]》"
     "astrbot_plugin_reply_trim",
     "q1w2e3r4t5y6658",
     "去掉回复首尾多余空白，并按「。？！」与换行分段发送（句号感叹号删除、问号保留）",
-    "1.3.1",
+    "1.4.0",
     "https://github.com/q1w2e3r4t5y6658/astrbot_plugin_reply_trim",
 )
 class ReplyTrimPlugin(Star):
@@ -106,18 +107,8 @@ class ReplyTrimPlugin(Star):
                 return True
         return False
 
-    def _session_blocked(self, event: AstrMessageEvent) -> bool:
-        """当前会话是否按名单跳过分段。
-
-        list_mode=blacklist（默认）：命中 blacklist 就跳过
-        list_mode=whitelist：**不在** whitelist 里就跳过（whitelist 留空 = 全部允许）
-        """
-        mode = str(self._cfg("list_mode", "blacklist") or "blacklist").strip().lower()
-        if mode in ("whitelist", "white", "allow"):
-            entries = self._cfg_list("whitelist")
-            if not entries:
-                return False
-            return not self._match_entries(event, entries)
+    def _is_blacklisted(self, event: AstrMessageEvent) -> bool:
+        """命中黑名单的会话不分段（黑名单里填 群号 / 用户号 / 完整会话标识）。"""
         return self._match_entries(event, self._cfg_list("blacklist"))
 
     # ------------------------------------------------------------------ #
@@ -282,8 +273,8 @@ class ReplyTrimPlugin(Star):
         # ② 按标点分段
         if not self._cfg_bool("split_enable", True):
             return
-        if self._session_blocked(event):
-            logger.debug("[reply_trim] 名单命中，不分段: %s", event.unified_msg_origin)
+        if self._is_blacklisted(event):
+            logger.debug("[reply_trim] 命中黑名单，不分段: %s", event.unified_msg_origin)
             return
 
         is_group = bool(event.get_group_id())
@@ -319,6 +310,10 @@ class ReplyTrimPlugin(Star):
         self._pending[pending_id] = {
             "session": event.unified_msg_origin,
             "segments": follow_up,
+            # 私聊「正在输入」要用：适配器句柄 + 对方 QQ + 是否群聊
+            "bot": getattr(event, "bot", None),
+            "user_id": str(event.get_sender_id() or ""),
+            "is_group": is_group,
         }
         event.set_extra(_PENDING_KEY, pending_id)
         logger.debug("[reply_trim] 分段 %d 段，首段=%r", len(segments), first[:30])
@@ -355,10 +350,37 @@ class ReplyTrimPlugin(Star):
             return high
         return random.uniform(low, high)
 
+    async def _notify_typing(self, pending: dict) -> None:
+        """私聊里先发一个「正在输入」状态，再等一会儿，像真人正在打字。
+
+        走 OneBot 扩展 action set_input_status（LLOneBot/NapCat 都有）。
+        底层实现是 setPrivateInputStatus，**只对私聊有效**，群聊直接跳过。
+        """
+        if not self._cfg_bool("typing_enable", True):
+            return
+        if pending.get("is_group"):
+            return
+        bot = pending.get("bot")
+        target = str(pending.get("user_id") or "").strip()
+        if bot is None or not target:
+            return
+        call_action = getattr(bot, "call_action", None)
+        if not callable(call_action):
+            return
+        try:
+            await call_action(
+                "set_input_status",
+                user_id=target,
+                event_type=int(self._cfg("typing_event_type", 1) or 1),
+            )
+        except Exception as exc:  # noqa: BLE001
+            logger.debug("[reply_trim] 设置输入状态失败: %s", exc)
+
     async def _send_remaining(self, pending: dict) -> None:
         session = pending.get("session")
         try:
             for seg in pending["segments"]:
+                await self._notify_typing(pending)
                 delay = self._random_delay()
                 if delay > 0:
                     await asyncio.sleep(delay)
