@@ -1,17 +1,19 @@
-"""回复整形插件：① 去掉首尾多余空白  ② 按标点分段发送。
+"""回复整形插件：① 去掉首尾多余空白  ② 按标点/换行分段发送。
 
 分段目的：让一条长回复拆成几条发出，更像真人在聊天。
 
 分段规则：
-- 在 split_chars（默认 「。？！」 和换行）**之后**切段
-- 段尾若是 drop_chars 里的字符（默认 「。！」）就**删掉**；「？」保留
+- 「换行」是**硬边界**：模型自己换行 = 它明确要分条，这一刀绝不合并
+- 标点分段符号（默认 「。？！」）在其**后面**切段
+- 段尾若是 drop_chars（默认 「。！」）里的字符就**删掉**；「？」保留
 - 其他符号（，、：～… 等）原样保留，也**不作为分段点**
 
-保护规则（避免"分得难看"）：
-- 整条太短（min_text_len）→ 不分段
+保护规则（避免分得难看）：
+- 整条太短（min_text_len，且没有换行）→ 不分段
 - 某段太短（min_segment_len）→ 并进上一段，并把当时删掉的标点补回来
 - 看起来是代码/列表（``` / - / 1. / > 等）→ 整条不分段
-- 群聊、私聊各自开关；黑名单里的会话一律不分段
+- 引号/括号内部不切（protect_quotes）
+- 群聊、私聊各自开关；名单（黑/白）里的会话按名单处理
 """
 
 from __future__ import annotations
@@ -31,13 +33,15 @@ _DEFAULT_SPLIT_CHARS = "。？！\n"
 _DEFAULT_DROP_CHARS = "。！"
 _CODE_FENCES = ("```", "~~~")
 _LIST_PREFIXES = ("- ", "* ", "+ ", "> ", "#", "| ", "1. ", "2. ", "3. ")
+_QUOTE_OPENERS = "“「『（(【[《"
+_QUOTE_CLOSERS = "”」』）)】]》"
 
 
 @register(
     "astrbot_plugin_reply_trim",
     "q1w2e3r4t5y6658",
-    "去掉回复首尾多余空白，并按「。？！」分段发送（句号感叹号删除、问号保留）",
-    "1.2.2",
+    "去掉回复首尾多余空白，并按「。？！」与换行分段发送（句号感叹号删除、问号保留）",
+    "1.3.0",
     "https://github.com/q1w2e3r4t5y6658/astrbot_plugin_reply_trim",
 )
 class ReplyTrimPlugin(Star):
@@ -81,10 +85,11 @@ class ReplyTrimPlugin(Star):
             return []
 
     # ------------------------------------------------------------------ #
-    # 黑名单：支持填 完整会话标识 / 群号 / 用户号
+    # 会话名单：黑名单 / 白名单
     # ------------------------------------------------------------------ #
-    def _is_blacklisted(self, event: AstrMessageEvent) -> bool:
-        entries = self._cfg_list("blacklist")
+    @staticmethod
+    def _match_entries(event: AstrMessageEvent, entries: list) -> bool:
+        """填 完整会话标识 / 群号 / 用户号 都能匹配。"""
         if not entries:
             return False
         umo = str(getattr(event, "unified_msg_origin", "") or "").strip()
@@ -101,6 +106,20 @@ class ReplyTrimPlugin(Star):
                 return True
         return False
 
+    def _session_blocked(self, event: AstrMessageEvent) -> bool:
+        """当前会话是否按名单跳过分段。
+
+        list_mode=blacklist（默认）：命中 blacklist 就跳过
+        list_mode=whitelist：**不在** whitelist 里就跳过（whitelist 留空 = 全部允许）
+        """
+        mode = str(self._cfg("list_mode", "blacklist") or "blacklist").strip().lower()
+        if mode in ("whitelist", "white", "allow"):
+            entries = self._cfg_list("whitelist")
+            if not entries:
+                return False
+            return not self._match_entries(event, entries)
+        return self._match_entries(event, self._cfg_list("blacklist"))
+
     # ------------------------------------------------------------------ #
     # 分段算法
     # ------------------------------------------------------------------ #
@@ -113,12 +132,9 @@ class ReplyTrimPlugin(Star):
         min_segment_len: int,
         max_segments: int,
         min_text_len: int = 0,
+        protect_quotes: bool = True,
     ) -> list[str]:
-        """分段主流程。
-
-        **换行是硬边界**：模型自己换行 = 它明确要分条，这一刀绝不合并。
-        标点切出来的碎段才受 min_segment_len 影响（会并进上一段）。
-        """
+        """分段主流程。换行是硬边界；标点切出的碎段才受 min_segment_len 影响。"""
         text = str(text).replace("\r\n", "\n").replace("\r", "\n").strip()
         if not text:
             return []
@@ -136,7 +152,9 @@ class ReplyTrimPlugin(Star):
             if not block:
                 continue
             segments.extend(
-                cls._split_block(block, punct_chars, drop_chars, min_segment_len)
+                cls._split_block(
+                    block, punct_chars, drop_chars, min_segment_len, protect_quotes
+                )
             )
 
         if not segments:
@@ -151,14 +169,31 @@ class ReplyTrimPlugin(Star):
 
     @staticmethod
     def _split_block(
-        block: str, punct_chars: str, drop_chars: str, min_segment_len: int
+        block: str,
+        punct_chars: str,
+        drop_chars: str,
+        min_segment_len: int,
+        protect_quotes: bool = True,
     ) -> list[str]:
-        """单个「块」（一行）内按标点切段，并做短段合并。"""
+        """单个「块」（一行）内按标点切段，并做短段合并。
+
+        protect_quotes=True 时，引号/括号内部的标点不会触发切段，
+        避免出现「前引号在这一条、后引号在下一条」。
+        """
         raw: list[str] = []
         buf: list[str] = []
+        depth = 0
+        ascii_quote = False
         for ch in block:
             buf.append(ch)
-            if ch in punct_chars:
+            if protect_quotes:
+                if ch in _QUOTE_OPENERS:
+                    depth += 1
+                elif ch in _QUOTE_CLOSERS:
+                    depth = max(0, depth - 1)
+                elif ch == '"':
+                    ascii_quote = not ascii_quote
+            if ch in punct_chars and depth == 0 and not ascii_quote:
                 raw.append("".join(buf))
                 buf = []
         if buf:
@@ -223,6 +258,10 @@ class ReplyTrimPlugin(Star):
     # ------------------------------------------------------------------ #
     @filter.on_decorating_result()
     async def on_decorating_result(self, event: AstrMessageEvent) -> None:
+        # 总开关（之前漏了这个检查，关掉也照样生效）
+        if not self._cfg_bool("enabled", True):
+            return
+
         result = event.get_result()
         chain = getattr(result, "chain", None)
         if not chain:
@@ -243,8 +282,8 @@ class ReplyTrimPlugin(Star):
         # ② 按标点分段
         if not self._cfg_bool("split_enable", True):
             return
-        if self._is_blacklisted(event):
-            logger.debug("[reply_trim] 命中黑名单，不分段: %s", event.unified_msg_origin)
+        if self._session_blocked(event):
+            logger.debug("[reply_trim] 名单命中，不分段: %s", event.unified_msg_origin)
             return
 
         is_group = bool(event.get_group_id())
@@ -269,6 +308,7 @@ class ReplyTrimPlugin(Star):
             int(self._cfg("min_segment_len", 6) or 0),
             int(self._cfg("max_segments", 6) or 0),
             int(self._cfg("min_text_len", 20) or 0),
+            self._cfg_bool("protect_quotes", True),
         )
         if len(segments) <= 1:
             return
@@ -288,6 +328,8 @@ class ReplyTrimPlugin(Star):
     # ------------------------------------------------------------------ #
     @filter.after_message_sent()
     async def after_message_sent(self, event: AstrMessageEvent) -> None:
+        if not self._cfg_bool("enabled", True):
+            return
         pending_id = str(event.get_extra(_PENDING_KEY, "") or "").strip()
         if not pending_id:
             return

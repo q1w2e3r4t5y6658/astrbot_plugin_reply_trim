@@ -5,6 +5,20 @@
 
 ---
 
+## [1.3.0] - 2026-10-15
+
+### 修复
+- **总开关 `enabled` 之前完全无效**：代码只检查了 trim_enable / split_enable / group_split_enable / private_split_enable / protect_code，**唯独漏了 enabled**，导致面板上关掉插件它照常分段。现在 on_decorating_result 和 after_message_sent 都会检查
+
+### 新增
+- **白名单模式** `list_mode`：blacklist（默认，黑名单里的会话不分段）/ whitelist（只有白名单里的会话分段，白名单留空 = 全部允许）
+- **引号/括号内部不切段** `protect_quotes`（默认开）：避免出现「前引号在这一条、后引号在下一条」
+
+### 说明
+- 「正在输入」状态没做：aiocqhttp（QQ）适配器没有实现 send_typing，调用是空操作，加了也是死代码
+
+---
+
 ## [1.2.2] - 2026-10-15
 
 ### 变更
@@ -66,6 +80,7 @@
 
 ---
 
+[1.3.0]: https://github.com/q1w2e3r4t5y6658/astrbot_plugin_reply_trim/releases/tag/v1.3.0
 [1.2.2]: https://github.com/q1w2e3r4t5y6658/astrbot_plugin_reply_trim/releases/tag/v1.2.2
 [1.2.1]: https://github.com/q1w2e3r4t5y6658/astrbot_plugin_reply_trim/releases/tag/v1.2.1
 [1.2.0]: https://github.com/q1w2e3r4t5y6658/astrbot_plugin_reply_trim/releases/tag/v1.2.0
