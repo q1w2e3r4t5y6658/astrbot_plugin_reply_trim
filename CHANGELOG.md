@@ -5,6 +5,13 @@
 
 ---
 
+## [1.4.1] - 2026-10-15
+
+### 文档
+- README 移除已删除的白名单说明，补上私聊「正在输入」章节
+
+---
+
 ## [1.4.0] - 2026-10-15
 
 ### 新增
@@ -100,6 +107,7 @@
 
 ---
 
+[1.4.1]: https://github.com/q1w2e3r4t5y6658/astrbot_plugin_reply_trim/releases/tag/v1.4.1
 [1.4.0]: https://github.com/q1w2e3r4t5y6658/astrbot_plugin_reply_trim/releases/tag/v1.4.0
 [1.3.1]: https://github.com/q1w2e3r4t5y6658/astrbot_plugin_reply_trim/releases/tag/v1.3.1
 [1.3.0]: https://github.com/q1w2e3r4t5y6658/astrbot_plugin_reply_trim/releases/tag/v1.3.0

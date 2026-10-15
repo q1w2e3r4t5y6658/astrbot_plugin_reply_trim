@@ -34,14 +34,19 @@ AstrBot 没有内置的「清理回复首尾空白」开关（content_cleanup_ru
 | protect_quotes | true | **引号、括号内部不切段**，避免「前引号在这一条、后引号在下一条」 |
 | segment_delay_min / max | 0.7 / 1.2 | 段间**随机**等待区间（秒），模拟真人打字节奏 |
 
-### 群聊 / 私聊 / 名单
+### 群聊 / 私聊 / 黑名单
 
 - group_split_enable（默认开）：群聊里也分段
 - private_split_enable（默认开）：私聊里也分段
-- list_mode：名单模式
-  - `blacklist`（默认）：**黑名单**里的会话不分段
-  - `whitelist`：**只有白名单**里的会话分段（白名单留空 = 全部允许）
-- blacklist / whitelist：填 **群号 / 用户号 / 完整会话标识**（如 `aiocqhttp:GroupMessage:12345`），命中的会话照常回复、只是不分段
+- blacklist：**不分段**的会话，填 **群号 / 用户号 / 完整会话标识**（如 `aiocqhttp:GroupMessage:12345`），命中的会话照常回复、只是不分段
+
+### 私聊「正在输入」
+
+补发下一段之前，先通过 OneBot 扩展动作 `set_input_status` 把机器人设为「正在输入」，**再**随机等 0.7~1.2 秒 —— 对方看到的是「正在打字」然后消息冒出来：
+
+- typing_enable（默认开）、typing_event_type（默认 1）
+- **只对私聊有效**：LLOneBot 8.x 的底层实现是 `setPrivateInputStatus`（`src/onebot11/action/llbot/user/SetInputStatus.ts`），群聊没有这个能力，插件自动跳过
+- 调用失败只记 DEBUG 日志，绝不影响正常发送
 
 ## 只对纯文本的模型回复生效
 
