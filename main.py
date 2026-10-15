@@ -36,7 +36,7 @@ _LIST_PREFIXES = ("- ", "* ", "+ ", "> ", "#", "| ", "1. ", "2. ", "3. ")
     "astrbot_plugin_reply_trim",
     "q1w2e3r4t5y6658",
     "去掉回复首尾多余空白，并按「。？！」分段发送（句号感叹号删除、问号保留）",
-    "1.2.0",
+    "1.2.1",
     "https://github.com/q1w2e3r4t5y6658/astrbot_plugin_reply_trim",
 )
 class ReplyTrimPlugin(Star):
@@ -103,20 +103,61 @@ class ReplyTrimPlugin(Star):
     # ------------------------------------------------------------------ #
     # 分段算法
     # ------------------------------------------------------------------ #
-    @staticmethod
+    @classmethod
     def split_text(
+        cls,
         text: str,
         split_chars: str,
         drop_chars: str,
         min_segment_len: int,
         max_segments: int,
+        min_text_len: int = 0,
     ) -> list[str]:
-        """按 split_chars 切段；段尾在 drop_chars 里的字符删掉；太短的段并进上一段。"""
+        """分段主流程。
+
+        **换行是硬边界**：模型自己换行 = 它明确要分条，这一刀绝不合并。
+        标点切出来的碎段才受 min_segment_len 影响（会并进上一段）。
+        """
+        text = str(text).replace("\r\n", "\n").replace("\r", "\n").strip()
+        if not text:
+            return []
+
+        # 标点类分段符号（换行已单独处理，不算在内）
+        punct_chars = "".join(ch for ch in split_chars if ch != "\n")
+
+        # 整条既没有换行、又太短 → 不分（避免「嗯。好的。」被拆两条）
+        if "\n" not in text and min_text_len and len(text) < int(min_text_len):
+            return [text]
+
+        segments: list[str] = []
+        for block in text.split("\n"):
+            block = block.strip()
+            if not block:
+                continue
+            segments.extend(
+                cls._split_block(block, punct_chars, drop_chars, min_segment_len)
+            )
+
+        if not segments:
+            return [text]
+
+        # 段数上限：超出的用换行拼进最后一段（保留结构，不再粘连）
+        if max_segments and len(segments) > max_segments:
+            segments = segments[: max_segments - 1] + [
+                "\n".join(segments[max_segments - 1 :])
+            ]
+        return segments
+
+    @staticmethod
+    def _split_block(
+        block: str, punct_chars: str, drop_chars: str, min_segment_len: int
+    ) -> list[str]:
+        """单个「块」（一行）内按标点切段，并做短段合并。"""
         raw: list[str] = []
         buf: list[str] = []
-        for ch in text:
+        for ch in block:
             buf.append(ch)
-            if ch in split_chars:
+            if ch in punct_chars:
                 raw.append("".join(buf))
                 buf = []
         if buf:
@@ -135,21 +176,14 @@ class ReplyTrimPlugin(Star):
             if piece:
                 pieces.append((piece, punct))
 
-        # 太短的段并进上一段
+        # 同块内太短的段并进上一段
         merged: list[tuple[str, str]] = []
         for ptext, punct in pieces:
             if merged and len(merged[-1][0]) < min_segment_len:
                 merged[-1] = (merged[-1][0] + merged[-1][1] + ptext, punct)
             else:
                 merged.append((ptext, punct))
-        segments = [t for t, _ in merged]
-
-        # 段数上限：超出的全部并进最后一段
-        if max_segments and len(segments) > max_segments:
-            segments = segments[: max_segments - 1] + [
-                "".join(segments[max_segments - 1 :])
-            ]
-        return segments
+        return [t for t, _ in merged]
 
     @staticmethod
     def _looks_like_code(text: str) -> bool:
@@ -223,8 +257,6 @@ class ReplyTrimPlugin(Star):
         text = "".join(c.text for c in chain)
         if not text.strip():
             return
-        if len(text.strip()) < int(self._cfg("min_text_len", 20) or 0):
-            return
         if self._cfg_bool("protect_code", True) and self._looks_like_code(text):
             logger.debug("[reply_trim] 疑似代码/列表，跳过分段")
             return
@@ -235,6 +267,7 @@ class ReplyTrimPlugin(Star):
             str(self._cfg("drop_chars", _DEFAULT_DROP_CHARS)),
             int(self._cfg("min_segment_len", 6) or 0),
             int(self._cfg("max_segments", 6) or 0),
+            int(self._cfg("min_text_len", 20) or 0),
         )
         if len(segments) <= 1:
             return

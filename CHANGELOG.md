@@ -5,6 +5,15 @@
 
 ---
 
+## [1.2.1] - 2026-10-15
+
+### 修复
+- **换行不再被合并**：模型自己用换行分出的段是「硬边界」，绝不会被 min_segment_len 粘回去。之前的实现在「…… / 还笑呢 / ……尾巴都要翘到天上去咯 / ……不理你了」这种多行回复里，会把前几行粘成一句读不通的长句，还把换行整个吃掉
+- min_text_len（整条太短保护）现在**只在没有换行时生效** —— 模型主动换行就说明它想分条，不该被「太短」拦下
+- 段数超上限时，改用**换行拼接**溢出的段（原来是无分隔直接粘，会把词粘在一起）
+
+---
+
 ## [1.2.0] - 2026-10-15
 
 ### 新增
@@ -49,5 +58,6 @@
 
 ---
 
+[1.2.1]: https://github.com/q1w2e3r4t5y6658/astrbot_plugin_reply_trim/releases/tag/v1.2.1
 [1.2.0]: https://github.com/q1w2e3r4t5y6658/astrbot_plugin_reply_trim/releases/tag/v1.2.0
 [1.1.0]: https://github.com/q1w2e3r4t5y6658/astrbot_plugin_reply_trim/releases/tag/v1.1.0
