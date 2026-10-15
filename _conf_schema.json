@@ -1,0 +1,30 @@
+{
+  "enabled": { "type": "bool", "description": "总开关", "default": true },
+  "trim_enable": { "type": "bool", "description": "去掉整条回复的首尾空白（换行/空格）", "default": true },
+  "split_enable": { "type": "bool", "description": "按标点分段发送", "default": true },
+  "group_split_enable": { "type": "bool", "description": "群聊里也分段", "default": true },
+  "private_split_enable": { "type": "bool", "description": "私聊里也分段", "default": true },
+  "blacklist": {
+    "type": "list",
+    "description": "不分段的会话黑名单",
+    "hint": "填 群号 / 用户号 / 完整会话标识（如 aiocqhttp:GroupMessage:12345），一行一个；命中的会话照常回复但不分段",
+    "default": []
+  },
+  "split_chars": {
+    "type": "string",
+    "description": "分段符号（在这些字符后面切段）",
+    "hint": "默认「。？！」，末尾的 \\n 代表换行（模型自己换行也分段）。用 \\n 表示换行符",
+    "default": "。？！\n"
+  },
+  "drop_chars": {
+    "type": "string",
+    "description": "分段后要删掉的符号",
+    "hint": "默认删掉「。」和「！」，问号不在此列所以会保留",
+    "default": "。！"
+  },
+  "min_text_len": { "type": "int", "description": "整条短于此长度就不分段", "default": 20 },
+  "min_segment_len": { "type": "int", "description": "某段短于此长度就并入上一段", "default": 6 },
+  "max_segments": { "type": "int", "description": "最多分几段（超出的并入最后一段）", "default": 6 },
+  "segment_delay": { "type": "float", "description": "段与段之间的间隔秒数", "default": 1.2 },
+  "protect_code": { "type": "bool", "description": "检测到代码块/列表/引用时整条不分段", "default": true }
+}
