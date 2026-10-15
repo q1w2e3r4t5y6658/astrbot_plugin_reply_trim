@@ -25,6 +25,7 @@
   "min_text_len": { "type": "int", "description": "整条短于此长度就不分段", "default": 20 },
   "min_segment_len": { "type": "int", "description": "某段短于此长度就并入上一段", "default": 6 },
   "max_segments": { "type": "int", "description": "最多分几段（超出的并入最后一段）", "default": 6 },
-  "segment_delay": { "type": "float", "description": "段与段之间的间隔秒数", "default": 1.2 },
+  "segment_delay_min": { "type": "float", "description": "段与段之间最短间隔（秒）", "default": 0.7 },
+  "segment_delay_max": { "type": "float", "description": "段与段之间最长间隔（秒）", "hint": "每段都会在 [最短, 最长] 之间随机取一个值，模拟真人打字节奏", "default": 1.2 },
   "protect_code": { "type": "bool", "description": "检测到代码块/列表/引用时整条不分段", "default": true }
 }

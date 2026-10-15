@@ -5,6 +5,14 @@
 
 ---
 
+## [1.2.2] - 2026-10-15
+
+### 变更
+- **段间间隔改为随机 0.7~1.2 秒**（每段独立取值），模拟真人打字节奏；原来的固定 1.2 秒太机械
+- 配置项 `segment_delay` 拆成 `segment_delay_min` / `segment_delay_max`
+
+---
+
 ## [1.2.1] - 2026-10-15
 
 ### 修复
@@ -58,6 +66,7 @@
 
 ---
 
+[1.2.2]: https://github.com/q1w2e3r4t5y6658/astrbot_plugin_reply_trim/releases/tag/v1.2.2
 [1.2.1]: https://github.com/q1w2e3r4t5y6658/astrbot_plugin_reply_trim/releases/tag/v1.2.1
 [1.2.0]: https://github.com/q1w2e3r4t5y6658/astrbot_plugin_reply_trim/releases/tag/v1.2.0
 [1.1.0]: https://github.com/q1w2e3r4t5y6658/astrbot_plugin_reply_trim/releases/tag/v1.1.0

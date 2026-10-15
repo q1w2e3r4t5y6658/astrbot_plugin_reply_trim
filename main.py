@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import asyncio
+import random
 from uuid import uuid4
 
 from astrbot.api import AstrBotConfig, logger
@@ -36,7 +37,7 @@ _LIST_PREFIXES = ("- ", "* ", "+ ", "> ", "#", "| ", "1. ", "2. ", "3. ")
     "astrbot_plugin_reply_trim",
     "q1w2e3r4t5y6658",
     "去掉回复首尾多余空白，并按「。？！」分段发送（句号感叹号删除、问号保留）",
-    "1.2.1",
+    "1.2.2",
     "https://github.com/q1w2e3r4t5y6658/astrbot_plugin_reply_trim",
 )
 class ReplyTrimPlugin(Star):
@@ -297,11 +298,26 @@ class ReplyTrimPlugin(Star):
         self._tasks.add(task)
         task.add_done_callback(self._tasks.discard)
 
+    def _random_delay(self) -> float:
+        """段间随机等待，模拟真人打字节奏（默认 0.7~1.2 秒）。"""
+        try:
+            low = float(self._cfg("segment_delay_min", 0.7) or 0)
+            high = float(self._cfg("segment_delay_max", 1.2) or 0)
+        except Exception:  # noqa: BLE001
+            low, high = 0.7, 1.2
+        if high < low:
+            low, high = high, low
+        if high <= 0:
+            return 0.0
+        if low <= 0:
+            return high
+        return random.uniform(low, high)
+
     async def _send_remaining(self, pending: dict) -> None:
         session = pending.get("session")
         try:
-            delay = float(self._cfg("segment_delay", 1.2) or 0)
             for seg in pending["segments"]:
+                delay = self._random_delay()
                 if delay > 0:
                     await asyncio.sleep(delay)
                 ok = await self.context.send_message(
