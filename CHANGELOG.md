@@ -5,6 +5,16 @@
 
 ---
 
+## [1.4.2] - 2026-10-16
+
+### 变更
+- **`min_text_len` 默认从 20 改为 0**（不设门槛）
+  - 起因：群里机器人回复普遍只有 9~15 字，全被「短回复保护」挡掉，看起来像分段失效
+  - 现在默认短回复也按标点分段；想减少碎消息再把它调大
+  - 注意：**有换行的回复一直是硬分段、不受此门槛影响**
+
+---
+
 ## [1.4.1] - 2026-10-15
 
 ### 文档
@@ -107,6 +117,7 @@
 
 ---
 
+[1.4.2]: https://github.com/q1w2e3r4t5y6658/astrbot_plugin_reply_trim/releases/tag/v1.4.2
 [1.4.1]: https://github.com/q1w2e3r4t5y6658/astrbot_plugin_reply_trim/releases/tag/v1.4.1
 [1.4.0]: https://github.com/q1w2e3r4t5y6658/astrbot_plugin_reply_trim/releases/tag/v1.4.0
 [1.3.1]: https://github.com/q1w2e3r4t5y6658/astrbot_plugin_reply_trim/releases/tag/v1.3.1

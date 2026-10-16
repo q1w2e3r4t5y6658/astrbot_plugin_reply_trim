@@ -42,7 +42,7 @@ _QUOTE_CLOSERS = "”」』）)】]》"
     "astrbot_plugin_reply_trim",
     "q1w2e3r4t5y6658",
     "去掉回复首尾多余空白，并按「。？！」与换行分段发送（句号感叹号删除、问号保留）",
-    "1.4.1",
+    "1.4.2",
     "https://github.com/q1w2e3r4t5y6658/astrbot_plugin_reply_trim",
 )
 class ReplyTrimPlugin(Star):
@@ -298,7 +298,7 @@ class ReplyTrimPlugin(Star):
             str(self._cfg("drop_chars", _DEFAULT_DROP_CHARS)),
             int(self._cfg("min_segment_len", 6) or 0),
             int(self._cfg("max_segments", 6) or 0),
-            int(self._cfg("min_text_len", 20) or 0),
+            int(self._cfg("min_text_len", 0) or 0),
             self._cfg_bool("protect_quotes", True),
         )
         if len(segments) <= 1:

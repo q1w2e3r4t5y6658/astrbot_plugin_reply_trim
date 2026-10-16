@@ -29,7 +29,7 @@
     "hint": "默认删掉「。」和「！」，问号不在此列所以会保留",
     "default": "。！"
   },
-  "min_text_len": { "type": "int", "description": "整条短于此长度（且没有换行）就不分段", "default": 20 },
+  "min_text_len": { "type": "int", "description": "整条短于此长度（且没有换行）就不分段", "hint": "默认 0 = 不设门槛，短回复也按标点分段；调大可以减少碎消息", "default": 0 },
   "min_segment_len": { "type": "int", "description": "同一行内某段短于此长度就并入上一段", "default": 6 },
   "max_segments": { "type": "int", "description": "最多分几段（超出的并入最后一段）", "default": 6 },
   "protect_code": { "type": "bool", "description": "检测到代码块/列表/引用时整条不分段", "default": true },
