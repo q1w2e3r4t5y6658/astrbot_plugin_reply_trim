@@ -5,6 +5,16 @@
 
 ---
 
+## [1.4.5] - 2026-10-17
+
+### 修复
+- **短段（语气词/拟声词）改为并到下一段的「前面」**
+  - 1.4.4 里是并到上一段后面：「真拿你没办法...\n唔...」—— 顺序反了
+  - 现在：「呼...\n真拿你没办法...」，语气词在句子前面，读起来才顺
+  - 短段出现在末尾（没有下一段）时，才附到上一段后面
+
+---
+
 ## [1.4.4] - 2026-10-17
 
 ### 变更
@@ -134,6 +144,7 @@
 
 ---
 
+[1.4.5]: https://github.com/q1w2e3r4t5y6658/astrbot_plugin_reply_trim/releases/tag/v1.4.5
 [1.4.4]: https://github.com/q1w2e3r4t5y6658/astrbot_plugin_reply_trim/releases/tag/v1.4.4
 [1.4.3]: https://github.com/q1w2e3r4t5y6658/astrbot_plugin_reply_trim/releases/tag/v1.4.3
 [1.4.2]: https://github.com/q1w2e3r4t5y6658/astrbot_plugin_reply_trim/releases/tag/v1.4.2

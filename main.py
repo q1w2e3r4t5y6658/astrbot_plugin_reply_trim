@@ -42,7 +42,7 @@ _QUOTE_CLOSERS = "”」』）)】]》"
     "astrbot_plugin_reply_trim",
     "q1w2e3r4t5y6658",
     "去掉回复首尾多余空白，并按「。？！」与换行分段发送（句号感叹号删除、问号保留）",
-    "1.4.4",
+    "1.4.5",
     "https://github.com/q1w2e3r4t5y6658/astrbot_plugin_reply_trim",
 )
 class ReplyTrimPlugin(Star):
@@ -155,15 +155,25 @@ class ReplyTrimPlugin(Star):
         if not segments:
             return [text]
 
-        # 换行切出来的段如果太短，并入上一段（用换行连接，形成一个多行气泡）
-        # 典型：「真拿你没办法...」+「唔...」→ 合成一条两行消息
+        # 太短的段（语气词/拟声词）要并到【下一段的前面】，而不是上一段的后面：
+        #   「呼...」+「真拿你没办法...」→「呼...\n真拿你没办法...」  ✅ 语气词在前
+        # 若短段出现在末尾（没有下一段），才附到上一段后面。
         if min_segment_len and len(segments) > 1:
-            merged = [segments[0]]
-            for seg in segments[1:]:
-                if len(seg) < int(min_segment_len):
-                    merged[-1] = merged[-1] + "\n" + seg
+            n = int(min_segment_len)
+            merged: list[str] = []
+            pending: list[str] = []
+            for seg in segments:
+                if len(seg) < n:
+                    pending.append(seg)
+                    continue
+                if pending:
+                    merged.append("\n".join(pending + [seg]))
+                    pending = []
                 else:
                     merged.append(seg)
+            if pending:
+                # 末尾连续几个短段：合成单独一条（不会去粘上面那条）
+                merged.append("\n".join(pending))
             segments = merged
 
         # 段数上限：超出的用换行拼进最后一段（保留结构，不再粘连）
