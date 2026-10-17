@@ -5,6 +5,16 @@
 
 ---
 
+## [1.4.4] - 2026-10-17
+
+### 变更
+- **太短的段会并入上一段**（跨换行也生效）
+  - 之前换行是「硬边界」，模型每行都会变成独立一条消息，导致「呼...」「唔...」「也是...」这类语气词单独占一条
+  - 现在长度 < `min_segment_len` 的段会用换行并入上一条，形成一个多行气泡
+  - 建议 `min_segment_len` 设 5~8；设 2 时几乎没有合并效果
+
+---
+
 ## [1.4.3] - 2026-10-17
 
 ### 新增
@@ -124,6 +134,7 @@
 
 ---
 
+[1.4.4]: https://github.com/q1w2e3r4t5y6658/astrbot_plugin_reply_trim/releases/tag/v1.4.4
 [1.4.3]: https://github.com/q1w2e3r4t5y6658/astrbot_plugin_reply_trim/releases/tag/v1.4.3
 [1.4.2]: https://github.com/q1w2e3r4t5y6658/astrbot_plugin_reply_trim/releases/tag/v1.4.2
 [1.4.1]: https://github.com/q1w2e3r4t5y6658/astrbot_plugin_reply_trim/releases/tag/v1.4.1

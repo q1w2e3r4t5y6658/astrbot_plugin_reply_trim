@@ -42,7 +42,7 @@ _QUOTE_CLOSERS = "”」』）)】]》"
     "astrbot_plugin_reply_trim",
     "q1w2e3r4t5y6658",
     "去掉回复首尾多余空白，并按「。？！」与换行分段发送（句号感叹号删除、问号保留）",
-    "1.4.3",
+    "1.4.4",
     "https://github.com/q1w2e3r4t5y6658/astrbot_plugin_reply_trim",
 )
 class ReplyTrimPlugin(Star):
@@ -125,7 +125,11 @@ class ReplyTrimPlugin(Star):
         min_text_len: int = 0,
         protect_quotes: bool = True,
     ) -> list[str]:
-        """分段主流程。换行是硬边界；标点切出的碎段才受 min_segment_len 影响。"""
+        """分段主流程。
+
+        换行优先切段（模型主动换行=想分条），但**太短的段会并入上一段**
+        （比如「呼...」「唔...」这种语气词，不会单独占一条）。
+        """
         text = str(text).replace("\r\n", "\n").replace("\r", "\n").strip()
         if not text:
             return []
@@ -150,6 +154,17 @@ class ReplyTrimPlugin(Star):
 
         if not segments:
             return [text]
+
+        # 换行切出来的段如果太短，并入上一段（用换行连接，形成一个多行气泡）
+        # 典型：「真拿你没办法...」+「唔...」→ 合成一条两行消息
+        if min_segment_len and len(segments) > 1:
+            merged = [segments[0]]
+            for seg in segments[1:]:
+                if len(seg) < int(min_segment_len):
+                    merged[-1] = merged[-1] + "\n" + seg
+                else:
+                    merged.append(seg)
+            segments = merged
 
         # 段数上限：超出的用换行拼进最后一段（保留结构，不再粘连）
         if max_segments and len(segments) > max_segments:

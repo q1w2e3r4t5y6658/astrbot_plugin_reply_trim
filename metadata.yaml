@@ -1,7 +1,7 @@
 name: astrbot_plugin_reply_trim
 display_name: 回复整形（去空白+标点分段）
 author: q1w2e3r4t5y6658
-version: 1.4.3
+version: 1.4.4
 short_desc: 去首尾空白 + 按。？！分段发送（群聊/私聊可控+黑名单）
 desc: 去掉机器人回复首尾多余的换行空格；并按「。？！」与换行分段发送，句号和感叹号删除、问号保留。支持群聊/私聊分别开关、会话黑名单、私聊「正在输入」、短回复保护、超短段合并、代码保护、引号括号内不切、段间随机延迟。
 repo: https://github.com/q1w2e3r4t5y6658/astrbot_plugin_reply_trim
