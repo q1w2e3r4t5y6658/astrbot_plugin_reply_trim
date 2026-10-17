@@ -5,6 +5,13 @@
 
 ---
 
+## [1.4.3] - 2026-10-17
+
+### 新增
+- 插件图标 `logo.png`（256×256）：剪刀把一条消息剪成多条气泡，对应本插件的分段功能
+
+---
+
 ## [1.4.2] - 2026-10-16
 
 ### 变更
@@ -117,6 +124,7 @@
 
 ---
 
+[1.4.3]: https://github.com/q1w2e3r4t5y6658/astrbot_plugin_reply_trim/releases/tag/v1.4.3
 [1.4.2]: https://github.com/q1w2e3r4t5y6658/astrbot_plugin_reply_trim/releases/tag/v1.4.2
 [1.4.1]: https://github.com/q1w2e3r4t5y6658/astrbot_plugin_reply_trim/releases/tag/v1.4.1
 [1.4.0]: https://github.com/q1w2e3r4t5y6658/astrbot_plugin_reply_trim/releases/tag/v1.4.0
