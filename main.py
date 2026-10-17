@@ -10,7 +10,7 @@
 
 保护规则（避免分得难看）：
 - 整条太短（min_text_len，且没有换行）→ 不分段
-- 某段太短（min_segment_len）→ 并进上一段，并把当时删掉的标点补回来
+- 某段太短（min_segment_len）→ 并到【下一段前面】，同一行不换行；只并最近的一个
 - 看起来是代码/列表（``` / - / 1. / > 等）→ 整条不分段
 - 引号/括号内部不切（protect_quotes）
 - 群聊、私聊各自开关；黑名单里的会话不分段
@@ -36,13 +36,25 @@ _CODE_FENCES = ("```", "~~~")
 _LIST_PREFIXES = ("- ", "* ", "+ ", "> ", "#", "| ", "1. ", "2. ", "3. ")
 _QUOTE_OPENERS = "“「『（(【[《"
 _QUOTE_CLOSERS = "”」』）)】]》"
+_ELLIPSIS_CHARS = ".…"
+
+
+def _seg_len(seg: str) -> int:
+    """算「这段算不算短」时用的长度：结尾的省略号（... / … / ......）只算 1 个字。
+
+    「过来一点...」按 5 个字算，而不是 7 个 —— 不然明明是个短句却被当成整句，
+    语气词就并不到后面那句话上了。
+    """
+    s = str(seg).rstrip(" \t\u3000")
+    core = s.rstrip(_ELLIPSIS_CHARS)
+    return len(core) + (1 if len(s) > len(core) else 0)
 
 
 @register(
     "astrbot_plugin_reply_trim",
     "q1w2e3r4t5y6658",
     "去掉回复首尾多余空白，并按「。？！」与换行分段发送（句号感叹号删除、问号保留）",
-    "1.4.5",
+    "1.4.6",
     "https://github.com/q1w2e3r4t5y6658/astrbot_plugin_reply_trim",
 )
 class ReplyTrimPlugin(Star):
@@ -127,8 +139,8 @@ class ReplyTrimPlugin(Star):
     ) -> list[str]:
         """分段主流程。
 
-        换行优先切段（模型主动换行=想分条），但**太短的段会并入上一段**
-        （比如「呼...」「唔...」这种语气词，不会单独占一条）。
+        换行优先切段（模型主动换行=想分条）；太短的段（「呼...」「唔...」这种
+        语气词/短句）会**并到下一段前面**，和句子在同一行，不换行。
         """
         text = str(text).replace("\r\n", "\n").replace("\r", "\n").strip()
         if not text:
@@ -156,24 +168,27 @@ class ReplyTrimPlugin(Star):
             return [text]
 
         # 太短的段（语气词/拟声词）要并到【下一段的前面】，而不是上一段的后面：
-        #   「呼...」+「真拿你没办法...」→「呼...\n真拿你没办法...」  ✅ 语气词在前
-        # 若短段出现在末尾（没有下一段），才附到上一段后面。
+        #   「呼...」+「真拿你没办法...」→「呼...真拿你没办法...」（同一行，不换行）✅
+        # 并且**只并离长句最近的那一个**：前面还有短段就各自单独成条，
+        # 免得三四个语气词全挤在同一个气泡里（QQ 里看着就是一整块）。
         if min_segment_len and len(segments) > 1:
             n = int(min_segment_len)
             merged: list[str] = []
             pending: list[str] = []
             for seg in segments:
-                if len(seg) < n:
+                if _seg_len(seg) < n:
                     pending.append(seg)
                     continue
                 if pending:
-                    merged.append("\n".join(pending + [seg]))
+                    if len(pending) > 1:
+                        merged.extend(pending[:-1])
+                    merged.append(pending[-1] + seg)
                     pending = []
                 else:
                     merged.append(seg)
             if pending:
-                # 末尾连续几个短段：合成单独一条（不会去粘上面那条）
-                merged.append("\n".join(pending))
+                # 末尾没有长句可并：各自单独成条（不再用换行粘成一条）
+                merged.extend(pending)
             segments = merged
 
         # 段数上限：超出的用换行拼进最后一段（保留结构，不再粘连）
