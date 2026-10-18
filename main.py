@@ -39,6 +39,32 @@ _QUOTE_CLOSERS = "”」』）)】]》"
 _ELLIPSIS_CHARS = ".…"
 
 
+def _plain_len(text: str) -> int:
+    """只数"实字"：省略号和空白不算，用来判断「这句到底有多短」。"""
+    return sum(1 for ch in str(text) if ch not in ".… \t\u3000")
+
+
+def _group_short(segments: list[str], limit: int) -> list[str]:
+    """把一串短段按「很短的那句才往后粘」分组。
+
+    「哼...」+「不理你了」        -> 「哼...不理你了」（前面只有 1 个字，粘）
+    「今天好累...」+「晚安...」+「好梦...」-> 「今天好累...」/「晚安...好梦...」
+        （「今天好累」本身是完整的一句，不粘；「晚安」「好梦」都很短，粘一起）
+    """
+    out: list[str] = []
+    group: list[str] = []
+    for seg in segments:
+        if group and _plain_len("".join(group)) <= limit:
+            group.append(seg)
+            continue
+        if group:
+            out.append("".join(group))
+        group = [seg]
+    if group:
+        out.append("".join(group))
+    return out
+
+
 def _seg_len(seg: str) -> int:
     """算「这段算不算短」时用的长度：结尾的省略号（... / … / ......）只算 1 个字。
 
@@ -54,7 +80,7 @@ def _seg_len(seg: str) -> int:
     "astrbot_plugin_reply_trim",
     "q1w2e3r4t5y6658",
     "去掉回复首尾多余空白，并按「。？！」与换行分段发送（句号感叹号删除、问号保留）",
-    "1.4.7",
+    "1.4.8",
     "https://github.com/q1w2e3r4t5y6658/astrbot_plugin_reply_trim",
 )
 class ReplyTrimPlugin(Star):
@@ -136,6 +162,7 @@ class ReplyTrimPlugin(Star):
         max_segments: int,
         min_text_len: int = 0,
         protect_quotes: bool = True,
+        tail_merge_len: int = 3,
     ) -> list[str]:
         """分段主流程。
 
@@ -181,15 +208,14 @@ class ReplyTrimPlugin(Star):
                     continue
                 if pending:
                     if len(pending) > 1:
-                        merged.extend(pending[:-1])
+                        merged.extend(_group_short(pending[:-1], tail_merge_len))
                     merged.append(pending[-1] + seg)
                     pending = []
                 else:
                     merged.append(seg)
             if pending:
-                # 整条末尾都是短段（没有长句可并）→ 合成一条，同一行
-                # 例：「哼...」+「不理你了」→「哼...不理你了」
-                merged.append("".join(pending))
+                # 整条末尾都是短段（没有长句可并）：按「很短的才往后粘」分组
+                merged.extend(_group_short(pending, tail_merge_len))
             segments = merged
 
         # 段数上限：超出的用换行拼进最后一段（保留结构，不再粘连）
@@ -341,6 +367,7 @@ class ReplyTrimPlugin(Star):
             int(self._cfg("max_segments", 6) or 0),
             int(self._cfg("min_text_len", 0) or 0),
             self._cfg_bool("protect_quotes", True),
+            int(self._cfg("tail_merge_len", 3) or 0),
         )
         if len(segments) <= 1:
             return
