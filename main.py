@@ -39,6 +39,8 @@ _QUOTE_OPENERS = "“「『（(【[《"
 _QUOTE_CLOSERS = "”」』）)】]》"
 _ELLIPSIS_CHARS = ".…"
 _TAG_ONLY_RE = re.compile(r"^(?:(?:【[^】]*】)|(?:\{[^}]*\})|(?:\[[^\]]*\]))+$")
+# 状态标签：{好感度：15} / ｛好感度：-50｝ —— 直接不发给用户
+_STATE_RE = re.compile(r"[{｛][^{}｛｝]*[}｝]")
 
 
 def _plain_len(text: str) -> int:
@@ -82,7 +84,7 @@ def _seg_len(seg: str) -> int:
     "astrbot_plugin_reply_trim",
     "q1w2e3r4t5y6658",
     "去掉回复首尾多余空白，并按「。？！」与换行分段发送（句号感叹号删除、问号保留）",
-    "1.5.0",
+    "1.5.1",
     "https://github.com/q1w2e3r4t5y6658/astrbot_plugin_reply_trim",
 )
 class ReplyTrimPlugin(Star):
@@ -416,6 +418,16 @@ class ReplyTrimPlugin(Star):
             if texts:
                 texts[0].text = texts[0].text.lstrip(TRIM_CHARS)
                 texts[-1].text = texts[-1].text.rstrip(TRIM_CHARS)
+
+        # ①.5 去掉 {好感度：15} 这类状态标签，别发给用户
+        if self._cfg_bool("strip_state_tags", True):
+            for comp in chain:
+                if isinstance(getattr(comp, "text", None), str):
+                    comp.text = _STATE_RE.sub("", comp.text)
+            for comp in reversed(chain):
+                if isinstance(getattr(comp, "text", None), str) and comp.text.strip():
+                    comp.text = comp.text.rstrip(TRIM_CHARS)
+                    break
 
         # ② 按标点分段
         if not self._cfg_bool("split_enable", True):

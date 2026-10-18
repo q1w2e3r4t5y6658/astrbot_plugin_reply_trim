@@ -31,6 +31,7 @@
   },
   "min_text_len": { "type": "int", "description": "整条短于此长度（且没有换行）就不分段", "hint": "默认 0 = 不设门槛，短回复也按标点分段；调大可以减少碎消息", "default": 0 },
   "min_segment_len": { "type": "int", "description": "短于此长度的段（语气词/短句）会并到下一段前面", "hint": "合并后同一行不换行；连续多个短段只并最近的一个，其余单独成条。结尾的省略号只算 1 个字（「过来一点...」按 5 个字算）；整条末尾都是短句时会合成一条", "default": 6 },
+  "strip_state_tags": { "type": "bool", "description": "删掉回复里的 {好感度：15} 这类状态标签，不发给用户", "hint": "只删花括号 {} 包起来的内容；【害羞】这类方括号标记会保留", "default": true },
   "line_split_min_len": { "type": "int", "description": "一行短于此长度就不按标点再切，整行当一句", "hint": "默认 24。调小 = 更容易按。？！切成多条；调大 = 更倾向一整行发出去", "default": 24 },
   "tail_merge_len": { "type": "int", "description": "末尾连续短句合并时，只有「实字」不超过此长度的那句才往后粘", "hint": "默认 3：「哼...」+「不理你了」→ 粘成一条；「今天好累...」+「晚安...」+「好梦...」→「今天好累...」单独，「晚安...好梦...」合并", "default": 3 },
   "max_segments": { "type": "int", "description": "最多分几段（超出的并入最后一段）", "default": 6 },
