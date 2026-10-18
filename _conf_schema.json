@@ -88,7 +88,7 @@
   "strip_state_tags": {
     "type": "bool",
     "description": "删除回复里的花括号状态标记，不发给用户",
-    "hint": "例如 {好感度：15}、{mood: happy} 这类模型自己加的状态字段；只删花括号，方括号【】里的内容会保留",
+    "hint": "例如 {mood: happy}、{mood: happy} 这类模型自己加的状态字段；只删花括号，方括号【】里的内容会保留",
     "default": true
   },
   "protect_code": {

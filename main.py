@@ -4,7 +4,7 @@
 
 处理流程：
 1. 去掉回复首尾多余的空白与换行
-2. 删掉模型夹带的花括号状态标记（如 {好感度：15}），不发给用户
+2. 删掉模型夹带的花括号状态标记（如 {mood: happy}），不发给用户
 3. 切单元：换行是硬边界；一行超过 line_split_min_len 才按 。？！ 再切
 4. 括号里的动作描写并到后面那句台词前面
 5. 短句（语气词/拟声词）并到下一句前面；末尾短句按"实字多少"分组
@@ -35,7 +35,7 @@ _QUOTE_OPENERS = "“「『（(【[《"
 _QUOTE_CLOSERS = "”」』）)】]》"
 _ELLIPSIS_CHARS = ".…"
 _TAG_ONLY_RE = re.compile(r"^(?:(?:【[^】]*】)|(?:\{[^}]*\})|(?:\[[^\]]*\]))+$")
-# 状态标记：{好感度：15} / {mood: happy} 这类模型自带的状态字段，直接不发给用户
+# 状态标记：{mood: happy} / {心情：开心} 这类模型自带的状态字段，直接不发给用户
 _STATE_RE = re.compile(r"[{｛][^{}｛｝]*[}｝]")
 
 
@@ -80,7 +80,7 @@ def _seg_len(seg: str) -> int:
     "astrbot_plugin_reply_trim",
     "q1w2e3r4t5y6658",
     "去首尾空白 + 按「。？！」与换行分段发送；短句并到下一句前，括号动作并到台词前",
-    "1.6.0",
+    "1.6.1",
     "https://github.com/q1w2e3r4t5y6658/astrbot_plugin_reply_trim",
 )
 class ReplyTrimPlugin(Star):
@@ -199,9 +199,9 @@ class ReplyTrimPlugin(Star):
         if not units:
             return [text]
 
-        # ② 括号里的动作描写（（尾巴轻甩，小声））不单独成条，并到后面那句前面
+        # ② 括号里的动作描写（（小声补充））不单独成条，并到后面那句前面
         units = cls._attach_actions(units)
-        # ③ 状态标签（【害羞】{好感度:15}）不单独成条，贴到上一条后面
+        # ③ 状态标签（【动作】{mood: happy}）不单独成条，贴到上一条后面
         units = cls._attach_tags(units)
 
         # ④ 短句合并：语气词并到下一句前面；整条末尾的短句按"实字多少"分组
@@ -233,7 +233,7 @@ class ReplyTrimPlugin(Star):
     def _is_action(unit: str) -> bool:
         """整段是否算「动作描写」，应该并到后面那句前面。
 
-        - 纯括号：「（尾巴轻甩，小声）」
+        - 纯括号：「（小声补充）」
         - 括号 + 一两个字：「（眼睛发亮）哇！」「（歪头）嗯？」
         """
         s = str(unit).strip().rstrip("。！？!?~～…，,、 \t\u3000")
@@ -415,7 +415,7 @@ class ReplyTrimPlugin(Star):
                 texts[0].text = texts[0].text.lstrip(TRIM_CHARS)
                 texts[-1].text = texts[-1].text.rstrip(TRIM_CHARS)
 
-        # ①.5 去掉 {好感度：15} 这类状态标签，别发给用户
+        # ①.5 去掉 {mood: happy} 这类状态标签，别发给用户
         if self._cfg_bool("strip_state_tags", True):
             for comp in chain:
                 if isinstance(getattr(comp, "text", None), str):
