@@ -1,0 +1,75 @@
+{
+  "metadata": {
+    "display_name": "回复整形（去空白 + 分段发送）",
+    "short_desc": "去掉回复首尾空白，并按标点把长回复拆成几条依次发出",
+    "desc": "把机器人的一条回复整理成更像真人聊天的形式：去掉首尾多余空白；按「。？！」与换行拆成几条依次发出（间隔随机）；短句/语气词并到后一句前面；括号里的动作描写并到后面的台词前面；模型夹带的花括号状态标记不发给用户。支持群聊/私聊分别开关、会话黑名单、私聊「正在输入」、代码与引号保护，分段规则全可调。"
+  },
+  "config": {
+    "enabled": {
+      "description": "总开关（关闭后本插件完全不起作用）"
+    },
+    "trim_enable": {
+      "description": "去掉整条回复首尾多余的空白与换行",
+      "hint": "机器人气泡前面常有一块空白，来源是 LLM 自己吐的换行 + AstrBot 的 @ 后换行"
+    },
+    "split_enable": {
+      "description": "按标点/换行分段发送"
+    },
+    "group_split_enable": {
+      "description": "群聊里也分段"
+    },
+    "private_split_enable": {
+      "description": "私聊里也分段"
+    },
+    "blacklist": {
+      "description": "不分段的会话（黑名单）",
+      "hint": "填 群号 / 用户号 / 完整会话标识，可填多项"
+    },
+    "typing_enable": {
+      "description": "私聊补发下一段前先发「正在输入」状态",
+      "hint": "走 OneBot 扩展动作 set_input_status（LLOneBot / NapCat 支持），只对私聊有效"
+    },
+    "typing_event_type": {
+      "description": "输入状态类型（1 通常是「正在输入」）"
+    },
+    "split_chars": {
+      "description": "分段符号（在这些字符后面切段）",
+      "hint": "默认「。？！」加换行；换行是硬分段，永远不合并"
+    },
+    "drop_chars": {
+      "description": "每条消息末尾要删掉的符号",
+      "hint": "默认删「。」「！」，「？」保留；想连句尾省略号一起删就加上「…」"
+    },
+    "min_text_len": {
+      "description": "整条短于此长度（且没有换行）就不分段"
+    },
+    "line_split_min_len": {
+      "description": "一行短于此长度就不按标点再切，整行当一句"
+    },
+    "min_segment_len": {
+      "description": "短于此长度的段（语气词/短句）会并到下一段前面"
+    },
+    "tail_merge_len": {
+      "description": "末尾连续短句合并时，只有「实字」不超过此长度的那句才往后粘"
+    },
+    "max_segments": {
+      "description": "最多分几段（超出的合并到最后一段）"
+    },
+    "strip_state_tags": {
+      "description": "删除回复里的花括号状态标记，不发给用户",
+      "hint": "例如 {好感度：15} 这类模型自己加的状态字段；方括号【】里的内容会保留"
+    },
+    "protect_code": {
+      "description": "检测到代码块/列表/引用/表格时整条不分段"
+    },
+    "protect_quotes": {
+      "description": "引号、括号内部不切段"
+    },
+    "segment_delay_min": {
+      "description": "段与段之间最短间隔（秒）"
+    },
+    "segment_delay_max": {
+      "description": "段与段之间最长间隔（秒）"
+    }
+  }
+}

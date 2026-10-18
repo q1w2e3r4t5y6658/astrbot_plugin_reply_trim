@@ -1,0 +1,73 @@
+{
+  "metadata": {
+    "display_name": "Reply Trim (whitespace + splitting)",
+    "short_desc": "Trim reply whitespace and send long replies as several chat bubbles",
+    "desc": "Makes bot replies feel like a person typing: strips leading/trailing blank lines, splits long replies by CJK punctuation into several messages sent with a random delay, attaches interjections to the following sentence, attaches parenthetical stage directions to the following line, and drops brace-wrapped state markers such as {affection: 15}. Group/private toggles, per-session blacklist, private-chat typing indicator, code/quote protection, and fully tunable splitting rules."
+  },
+  "config": {
+    "enabled": {
+      "description": "Master switch (plugin does nothing when off)"
+    },
+    "trim_enable": {
+      "description": "Trim leading/trailing whitespace and blank lines"
+    },
+    "split_enable": {
+      "description": "Split replies by punctuation and newlines"
+    },
+    "group_split_enable": {
+      "description": "Split in group chats too"
+    },
+    "private_split_enable": {
+      "description": "Split in private chats too"
+    },
+    "blacklist": {
+      "description": "Sessions that are never split (blacklist)",
+      "hint": "Group id / user id / full session id, one per entry"
+    },
+    "typing_enable": {
+      "description": "Send a typing indicator before each follow-up in private chats",
+      "hint": "Uses the OneBot extension action set_input_status (LLOneBot / NapCat); private chats only"
+    },
+    "typing_event_type": {
+      "description": "Typing status type (1 usually means typing)"
+    },
+    "split_chars": {
+      "description": "Split characters (cut after each of these)"
+    },
+    "drop_chars": {
+      "description": "Characters removed at the end of every message",
+      "hint": "Defaults remove 。 and ！; ？ is kept. Add … to also drop trailing ellipses"
+    },
+    "min_text_len": {
+      "description": "Do not split when the whole reply is shorter than this (and has no newline)"
+    },
+    "line_split_min_len": {
+      "description": "A line shorter than this is sent as one message without punctuation splitting"
+    },
+    "min_segment_len": {
+      "description": "Segments shorter than this are attached to the following sentence"
+    },
+    "tail_merge_len": {
+      "description": "When the reply ends with short segments, only those with at most this many real characters are merged forward"
+    },
+    "max_segments": {
+      "description": "Maximum number of messages (the rest are merged into the last one)"
+    },
+    "strip_state_tags": {
+      "description": "Remove brace-wrapped state markers from replies",
+      "hint": "e.g. {affection: 15}; content inside 【】 is kept"
+    },
+    "protect_code": {
+      "description": "Never split code blocks, lists, quotes or tables"
+    },
+    "protect_quotes": {
+      "description": "Do not split inside quotes or brackets"
+    },
+    "segment_delay_min": {
+      "description": "Minimum delay between messages (seconds)"
+    },
+    "segment_delay_max": {
+      "description": "Maximum delay between messages (seconds)"
+    }
+  }
+}
