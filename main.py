@@ -54,7 +54,7 @@ def _seg_len(seg: str) -> int:
     "astrbot_plugin_reply_trim",
     "q1w2e3r4t5y6658",
     "去掉回复首尾多余空白，并按「。？！」与换行分段发送（句号感叹号删除、问号保留）",
-    "1.4.6",
+    "1.4.7",
     "https://github.com/q1w2e3r4t5y6658/astrbot_plugin_reply_trim",
 )
 class ReplyTrimPlugin(Star):
@@ -187,8 +187,9 @@ class ReplyTrimPlugin(Star):
                 else:
                     merged.append(seg)
             if pending:
-                # 末尾没有长句可并：各自单独成条（不再用换行粘成一条）
-                merged.extend(pending)
+                # 整条末尾都是短段（没有长句可并）→ 合成一条，同一行
+                # 例：「哼...」+「不理你了」→「哼...不理你了」
+                merged.append("".join(pending))
             segments = merged
 
         # 段数上限：超出的用换行拼进最后一段（保留结构，不再粘连）

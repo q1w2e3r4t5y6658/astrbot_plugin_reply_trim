@@ -30,7 +30,7 @@
     "default": "。！"
   },
   "min_text_len": { "type": "int", "description": "整条短于此长度（且没有换行）就不分段", "hint": "默认 0 = 不设门槛，短回复也按标点分段；调大可以减少碎消息", "default": 0 },
-  "min_segment_len": { "type": "int", "description": "短于此长度的段（语气词/短句）会并到下一段前面", "hint": "合并后同一行不换行；连续多个短段只并最近的一个，其余单独成条。结尾的省略号只算 1 个字（「过来一点...」按 5 个字算）", "default": 6 },
+  "min_segment_len": { "type": "int", "description": "短于此长度的段（语气词/短句）会并到下一段前面", "hint": "合并后同一行不换行；连续多个短段只并最近的一个，其余单独成条。结尾的省略号只算 1 个字（「过来一点...」按 5 个字算）；整条末尾都是短句时会合成一条", "default": 6 },
   "max_segments": { "type": "int", "description": "最多分几段（超出的并入最后一段）", "default": 6 },
   "protect_code": { "type": "bool", "description": "检测到代码块/列表/引用时整条不分段", "default": true },
   "protect_quotes": { "type": "bool", "description": "引号、括号内部不切段", "hint": "避免「前引号在这一条、后引号在下一条」", "default": true },
