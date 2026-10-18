@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import asyncio
 import random
+import re
 from uuid import uuid4
 
 from astrbot.api import AstrBotConfig, logger
@@ -37,6 +38,7 @@ _LIST_PREFIXES = ("- ", "* ", "+ ", "> ", "#", "| ", "1. ", "2. ", "3. ")
 _QUOTE_OPENERS = "“「『（(【[《"
 _QUOTE_CLOSERS = "”」』）)】]》"
 _ELLIPSIS_CHARS = ".…"
+_TAG_ONLY_RE = re.compile(r"^(?:(?:【[^】]*】)|(?:\{[^}]*\})|(?:\[[^\]]*\]))+$")
 
 
 def _plain_len(text: str) -> int:
@@ -80,7 +82,7 @@ def _seg_len(seg: str) -> int:
     "astrbot_plugin_reply_trim",
     "q1w2e3r4t5y6658",
     "去掉回复首尾多余空白，并按「。？！」与换行分段发送（句号感叹号删除、问号保留）",
-    "1.4.8",
+    "1.5.0",
     "https://github.com/q1w2e3r4t5y6658/astrbot_plugin_reply_trim",
 )
 class ReplyTrimPlugin(Star):
@@ -163,6 +165,7 @@ class ReplyTrimPlugin(Star):
         min_text_len: int = 0,
         protect_quotes: bool = True,
         tail_merge_len: int = 3,
+        line_split_min_len: int = 24,
     ) -> list[str]:
         """分段主流程。
 
@@ -180,50 +183,127 @@ class ReplyTrimPlugin(Star):
         if "\n" not in text and min_text_len and len(text) < int(min_text_len):
             return [text]
 
-        segments: list[str] = []
+        # ① 先切成「单元」：换行是硬边界；一行很长时才按标点再切
+        units: list[str] = []
         for block in text.split("\n"):
             block = block.strip()
             if not block:
                 continue
-            segments.extend(
-                cls._split_block(
-                    block, punct_chars, drop_chars, min_segment_len, protect_quotes
+            if len(block) < int(line_split_min_len):
+                # 短行整行当一句，不再按标点切碎
+                units.append(block)
+            else:
+                units.extend(
+                    cls._split_block(
+                        block, punct_chars, drop_chars, min_segment_len, protect_quotes
+                    )
                 )
-            )
-
-        if not segments:
+        if not units:
             return [text]
 
-        # 太短的段（语气词/拟声词）要并到【下一段的前面】，而不是上一段的后面：
-        #   「呼...」+「真拿你没办法...」→「呼...真拿你没办法...」（同一行，不换行）✅
-        # 并且**只并离长句最近的那一个**：前面还有短段就各自单独成条，
-        # 免得三四个语气词全挤在同一个气泡里（QQ 里看着就是一整块）。
-        if min_segment_len and len(segments) > 1:
-            n = int(min_segment_len)
-            merged: list[str] = []
-            pending: list[str] = []
-            for seg in segments:
-                if _seg_len(seg) < n:
-                    pending.append(seg)
-                    continue
-                if pending:
-                    if len(pending) > 1:
-                        merged.extend(_group_short(pending[:-1], tail_merge_len))
-                    merged.append(pending[-1] + seg)
-                    pending = []
-                else:
-                    merged.append(seg)
-            if pending:
-                # 整条末尾都是短段（没有长句可并）：按「很短的才往后粘」分组
-                merged.extend(_group_short(pending, tail_merge_len))
-            segments = merged
+        # ② 括号里的动作描写（（尾巴轻甩，小声））不单独成条，并到后面那句前面
+        units = cls._attach_actions(units)
+        # ③ 状态标签（【害羞】{好感度:15}）不单独成条，贴到上一条后面
+        units = cls._attach_tags(units)
 
-        # 段数上限：超出的用换行拼进最后一段（保留结构，不再粘连）
+        # ④ 短句合并：语气词并到下一句前面；整条末尾的短句按"实字多少"分组
+        segments = cls._merge_short(units, min_segment_len, tail_merge_len)
+
+        # ⑤ 每条末尾的「。」「！」「……」删掉（中间的不动）
+        cleaned: list[str] = []
+        for seg in segments:
+            one = cls._strip_drop(seg, drop_chars)
+            cleaned.append(one or seg)
+        segments = cleaned
+
+        # ⑥ 段数上限：超出的用换行拼进最后一段（保留结构，不再粘连）
         if max_segments and len(segments) > max_segments:
             segments = segments[: max_segments - 1] + [
                 "\n".join(segments[max_segments - 1 :])
             ]
         return segments
+
+    @staticmethod
+    def _strip_drop(text: str, drop_chars: str) -> str:
+        """去掉句尾要删的标点（整串，比如「……」一起删）。"""
+        s = str(text).strip()
+        while s and s[-1] in drop_chars:
+            s = s[:-1].rstrip()
+        return s
+
+    @staticmethod
+    def _is_action(unit: str) -> bool:
+        """整段是否算「动作描写」，应该并到后面那句前面。
+
+        - 纯括号：「（尾巴轻甩，小声）」
+        - 括号 + 一两个字：「（眼睛发亮）哇！」「（歪头）嗯？」
+        """
+        s = str(unit).strip().rstrip("。！？!?~～…，,、 \t\u3000")
+        if (s.startswith("（") and s.endswith("）")) or (
+            s.startswith("(") and s.endswith(")")
+        ):
+            return True
+        rest = re.sub(r"^(?:（[^）]*）|\([^)]*\))+", "", s).strip()
+        rest = rest.rstrip("。！？!?~～…，,、 \t\u3000")
+        return 0 < len(rest) <= 2
+
+    @classmethod
+    def _attach_actions(cls, units: list[str]) -> list[str]:
+        """连续的括号动作攒在一起，并到后面那句前面；末尾没有台词就贴到上一句。"""
+        out: list[str] = []
+        buf = ""
+        for unit in units:
+            if cls._is_action(unit):
+                buf += unit
+                continue
+            out.append(buf + unit)
+            buf = ""
+        if buf:
+            if out:
+                out[-1] = out[-1] + buf
+            else:
+                out.append(buf)
+        return out
+
+    @classmethod
+    def _attach_tags(cls, units: list[str]) -> list[str]:
+        """只剩状态标签的单元不单独成条，贴到上一条后面。"""
+        out: list[str] = []
+        for unit in units:
+            if _TAG_ONLY_RE.match(unit.strip()) and out:
+                out[-1] = out[-1] + unit
+                continue
+            out.append(unit)
+        return out
+
+    @staticmethod
+    def _merge_short(
+        segments: list[str], min_segment_len: int, tail_merge_len: int
+    ) -> list[str]:
+        """短句合并。
+
+        - 有长句跟在后面：只把**紧挨着**长句的那一个短段并进去
+        - 后面没有长句了：按「实字 ≤ tail_merge_len 的才往后粘」分组
+        """
+        if not min_segment_len or len(segments) <= 1:
+            return segments
+        n = int(min_segment_len)
+        merged: list[str] = []
+        pending: list[str] = []
+        for seg in segments:
+            if _seg_len(seg) < n:
+                pending.append(seg)
+                continue
+            if pending:
+                if len(pending) > 1:
+                    merged.extend(_group_short(pending[:-1], tail_merge_len))
+                merged.append(pending[-1] + seg)
+                pending = []
+            else:
+                merged.append(seg)
+        if pending:
+            merged.extend(_group_short(pending, tail_merge_len))
+        return merged
 
     @staticmethod
     def _split_block(
@@ -257,27 +337,27 @@ class ReplyTrimPlugin(Star):
         if buf:
             raw.append("".join(buf))
 
-        # 去尾部要删的标点，并记住它（合并时补回来，避免把话粘连）
-        pieces: list[tuple[str, str]] = []
+        # 标点先留着（合并时才不会把话粘连），最后统一去掉每条末尾的标点
+        pieces: list[str] = []
         for piece in raw:
             piece = piece.strip()
             if not piece:
                 continue
-            punct = ""
-            if piece[-1] in drop_chars:
-                punct = piece[-1]
-                piece = piece[:-1].rstrip()
-            if piece:
-                pieces.append((piece, punct))
+            # 「？」「！」这种只剩标点的碎片，并到上一条，别单独成句
+            if all(ch in punct_chars + drop_chars for ch in piece):
+                if pieces:
+                    pieces[-1] += piece
+                continue
+            pieces.append(piece)
 
         # 同块内太短的段并进上一段
-        merged: list[tuple[str, str]] = []
-        for ptext, punct in pieces:
-            if merged and len(merged[-1][0]) < min_segment_len:
-                merged[-1] = (merged[-1][0] + merged[-1][1] + ptext, punct)
+        merged: list[str] = []
+        for piece in pieces:
+            if merged and _seg_len(merged[-1]) < int(min_segment_len):
+                merged[-1] = merged[-1] + piece
             else:
-                merged.append((ptext, punct))
-        return [t for t, _ in merged]
+                merged.append(piece)
+        return merged
 
     @staticmethod
     def _looks_like_code(text: str) -> bool:
@@ -368,6 +448,7 @@ class ReplyTrimPlugin(Star):
             int(self._cfg("min_text_len", 0) or 0),
             self._cfg_bool("protect_quotes", True),
             int(self._cfg("tail_merge_len", 3) or 0),
+            int(self._cfg("line_split_min_len", 24) or 0),
         )
         if len(segments) <= 1:
             return
