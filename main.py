@@ -60,7 +60,7 @@ def _seg_len(seg: str) -> int:
     "astrbot_plugin_reply_trim",
     "q1w2e3r4t5y6658",
     "去首尾空白 + 按「。？！」与换行分段发送；极短语气行并到下一条前，括号动作并到台词前",
-    "1.6.2",
+    "1.6.3",
     "https://github.com/q1w2e3r4t5y6658/astrbot_plugin_reply_trim",
 )
 class ReplyTrimPlugin(Star):
@@ -142,15 +142,16 @@ class ReplyTrimPlugin(Star):
         max_segments: int,
         min_text_len: int = 0,
         protect_quotes: bool = True,
-        tail_merge_len: int = 3,
+        tail_merge_len: int = 1,
         line_split_min_len: int = 24,
     ) -> list[str]:
         """分段主流程。
 
         换行优先切段（模型主动换行＝想单独发一条）；只有实字不超过
-        tail_merge_len 的极短行（「唔……」这种一个字的语气词）才并到下一条前面。
+        tail_merge_len 的极短行（「唔……」这种单个字）才并到下一条前面。
         这样「……唔…… / ……啾…… / ……嗯……」这种一行一声的回复不会被揉成一段，
         而「哼... / 不理你了」这种前半只是个语气词的仍会合成一条。
+        整条每一行都是极短行时，退回「一行一条」，不再合并成一大段。
         """
         text = str(text).replace("\r\n", "\n").replace("\r", "\n").strip()
         if not text:
@@ -266,6 +267,10 @@ class ReplyTrimPlugin(Star):
         整条全是极短行时保持原样，一行一条。
         """
         if len(units) <= 1:
+            return list(units)
+        # 整条每一行都是极短行（「唔……」/「啾……」/「嗯……」）：一行一条，
+        # 不能因为「都够短」就把整条回复并成一段
+        if limit and all(_plain_len(u) <= int(limit) for u in units):
             return list(units)
         out: list[str] = []
         buf: list[str] = []
@@ -435,7 +440,7 @@ class ReplyTrimPlugin(Star):
             int(self._cfg("max_segments", 6) or 0),
             int(self._cfg("min_text_len", 0) or 0),
             self._cfg_bool("protect_quotes", True),
-            int(self._cfg("tail_merge_len", 3) or 0),
+            int(self._cfg("tail_merge_len", 1) or 0),
             int(self._cfg("line_split_min_len", 24) or 0),
         )
         if len(segments) <= 1:

@@ -48,7 +48,8 @@
       "description": "Punctuation-split fragments within one line shorter than this are attached to the next segment"
     },
     "tail_merge_len": {
-      "description": "Only extremely short lines (at most this many real characters) are merged into the next line instead of being sent alone"
+      "description": "Only extremely short lines (at most this many real characters) are merged into the next line instead of being sent alone",
+      "hint": "Default 1 (only single-character lines merge). 0 = no merging at all, one line per message"
     },
     "max_segments": {
       "description": "Maximum number of messages (the rest are merged into the last one)"
