@@ -47,10 +47,10 @@
       "description": "一行短于此长度就不按标点再切，整行当一句"
     },
     "min_segment_len": {
-      "description": "短于此长度的段（语气词/短句）会并到下一段前面"
+      "description": "同一行内按标点切出的碎片，短于此长度就并到下一段前面"
     },
     "tail_merge_len": {
-      "description": "末尾连续短句合并时，只有「实字」不超过此长度的那句才往后粘"
+      "description": "只有「实字」不超过此长度的极短行才并到下一条前面，不单独占一条消息"
     },
     "max_segments": {
       "description": "最多分几段（超出的合并到最后一段）"

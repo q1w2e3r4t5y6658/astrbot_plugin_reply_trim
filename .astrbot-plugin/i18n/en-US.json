@@ -45,10 +45,10 @@
       "description": "A line shorter than this is sent as one message without punctuation splitting"
     },
     "min_segment_len": {
-      "description": "Segments shorter than this are attached to the following sentence"
+      "description": "Punctuation-split fragments within one line shorter than this are attached to the next segment"
     },
     "tail_merge_len": {
-      "description": "When the reply ends with short segments, only those with at most this many real characters are merged forward"
+      "description": "Only extremely short lines (at most this many real characters) are merged into the next line instead of being sent alone"
     },
     "max_segments": {
       "description": "Maximum number of messages (the rest are merged into the last one)"

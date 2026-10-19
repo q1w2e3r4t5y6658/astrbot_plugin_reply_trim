@@ -5,9 +5,10 @@
 处理流程：
 1. 去掉回复首尾多余的空白与换行
 2. 删掉模型夹带的花括号状态标记（如 {mood: happy}），不发给用户
-3. 切单元：换行是硬边界；一行超过 line_split_min_len 才按 。？！ 再切
+3. 切单元：换行是硬边界（模型换行＝想单独发一条）；
+   一行超过 line_split_min_len 才按 。？！ 再切
 4. 括号里的动作描写并到后面那句台词前面
-5. 短句（语气词/拟声词）并到下一句前面；末尾短句按"实字多少"分组
+5. 只剩一两个字的语气行（「唔……」「哼…」）并到下一条前面，不单独占一条
 6. 每条末尾的 。！… 删掉；段数超过 max_segments 时合并到最后一段
 
 保护规则：代码块/列表不分段，引号括号内部不切段，黑名单会话不分段。
@@ -44,27 +45,6 @@ def _plain_len(text: str) -> int:
     return sum(1 for ch in str(text) if ch not in ".… \t\u3000")
 
 
-def _group_short(segments: list[str], limit: int) -> list[str]:
-    """把一串短段按「很短的那句才往后粘」分组。
-
-    「哼...」+「不理你了」        -> 「哼...不理你了」（前面只有 1 个字，粘）
-    「今天好累...」+「晚安...」+「好梦...」-> 「今天好累...」/「晚安...好梦...」
-        （「今天好累」本身是完整的一句，不粘；「晚安」「好梦」都很短，粘一起）
-    """
-    out: list[str] = []
-    group: list[str] = []
-    for seg in segments:
-        if group and _plain_len("".join(group)) <= limit:
-            group.append(seg)
-            continue
-        if group:
-            out.append("".join(group))
-        group = [seg]
-    if group:
-        out.append("".join(group))
-    return out
-
-
 def _seg_len(seg: str) -> int:
     """算「这段算不算短」时用的长度：结尾的省略号（... / … / ......）只算 1 个字。
 
@@ -79,8 +59,8 @@ def _seg_len(seg: str) -> int:
 @register(
     "astrbot_plugin_reply_trim",
     "q1w2e3r4t5y6658",
-    "去首尾空白 + 按「。？！」与换行分段发送；短句并到下一句前，括号动作并到台词前",
-    "1.6.1",
+    "去首尾空白 + 按「。？！」与换行分段发送；极短语气行并到下一条前，括号动作并到台词前",
+    "1.6.2",
     "https://github.com/q1w2e3r4t5y6658/astrbot_plugin_reply_trim",
 )
 class ReplyTrimPlugin(Star):
@@ -167,8 +147,10 @@ class ReplyTrimPlugin(Star):
     ) -> list[str]:
         """分段主流程。
 
-        换行优先切段（模型主动换行=想分条）；太短的段（「呼...」「唔...」这种
-        语气词/短句）会**并到下一段前面**，和句子在同一行，不换行。
+        换行优先切段（模型主动换行＝想单独发一条）；只有实字不超过
+        tail_merge_len 的极短行（「唔……」这种一个字的语气词）才并到下一条前面。
+        这样「……唔…… / ……啾…… / ……嗯……」这种一行一声的回复不会被揉成一段，
+        而「哼... / 不理你了」这种前半只是个语气词的仍会合成一条。
         """
         text = str(text).replace("\r\n", "\n").replace("\r", "\n").strip()
         if not text:
@@ -204,8 +186,8 @@ class ReplyTrimPlugin(Star):
         # ③ 状态标签（【动作】{mood: happy}）不单独成条，贴到上一条后面
         units = cls._attach_tags(units)
 
-        # ④ 短句合并：语气词并到下一句前面；整条末尾的短句按"实字多少"分组
-        segments = cls._merge_short(units, min_segment_len, tail_merge_len)
+        # ④ 短行合并：只剩一两个字的语气行并到下一条前面，别单独占一条
+        segments = cls._merge_short(units, tail_merge_len)
 
         # ⑤ 每条末尾的「。」「！」「……」删掉（中间的不动）
         cleaned: list[str] = []
@@ -237,13 +219,13 @@ class ReplyTrimPlugin(Star):
         - 括号 + 一两个字：「（眼睛发亮）哇！」「（歪头）嗯？」
         """
         s = str(unit).strip().rstrip("。！？!?~～…，,、 \t\u3000")
-        if (s.startswith("（") and s.endswith("）")) or (
-            s.startswith("(") and s.endswith(")")
-        ):
-            return True
-        rest = re.sub(r"^(?:（[^）]*）|\([^)]*\))+", "", s).strip()
-        rest = rest.rstrip("。！？!?~～…，,、 \t\u3000")
-        return 0 < len(rest) <= 2
+        # 必须真的以括号开头才算动作描写；否则「唔……」这种一个字的语气行
+        # 会被误判成动作，连后面的台词一起并掉
+        m = re.match(r"^(?:（[^）]*）|\([^)]*\))+", s)
+        if not m:
+            return False
+        rest = s[m.end():].strip().rstrip("。！？!?~～…，,、 \t\u3000")
+        return len(rest) <= 2
 
     @classmethod
     def _attach_actions(cls, units: list[str]) -> list[str]:
@@ -275,33 +257,31 @@ class ReplyTrimPlugin(Star):
         return out
 
     @staticmethod
-    def _merge_short(
-        segments: list[str], min_segment_len: int, tail_merge_len: int
-    ) -> list[str]:
-        """短句合并。
+    def _merge_short(units: list[str], limit: int) -> list[str]:
+        """只有实字 ≤ limit 的极短行才往前并，别让它们单独占一条消息。
 
-        - 有长句跟在后面：只把**紧挨着**长句的那一个短段并进去
-        - 后面没有长句了：按「实字 ≤ tail_merge_len 的才往后粘」分组
+        「唔……」「啾……」「嗯……」+「好啦……够了吧……」 -> 「唔……啾……嗯……好啦……够了吧……」
+        「哼...」+「不理你了」                            -> 「哼...不理你了」
+        末尾剩下的短行（「晚安...」「好梦...」）一路收尾成一条；
+        整条全是极短行时保持原样，一行一条。
         """
-        if not min_segment_len or len(segments) <= 1:
-            return segments
-        n = int(min_segment_len)
-        merged: list[str] = []
-        pending: list[str] = []
-        for seg in segments:
-            if _seg_len(seg) < n:
-                pending.append(seg)
+        if len(units) <= 1:
+            return list(units)
+        out: list[str] = []
+        buf: list[str] = []
+        for unit in units:
+            if limit and _plain_len(unit) <= int(limit):
+                buf.append(unit)
                 continue
-            if pending:
-                if len(pending) > 1:
-                    merged.extend(_group_short(pending[:-1], tail_merge_len))
-                merged.append(pending[-1] + seg)
-                pending = []
+            out.append("".join(buf + [unit]))
+            buf = []
+        if buf:
+            # 结尾的短行：前面还有整句就收成一条，否则一行一条别硬粘
+            if out:
+                out.append("".join(buf))
             else:
-                merged.append(seg)
-        if pending:
-            merged.extend(_group_short(pending, tail_merge_len))
-        return merged
+                return list(units)
+        return out or list(units)
 
     @staticmethod
     def _split_block(
