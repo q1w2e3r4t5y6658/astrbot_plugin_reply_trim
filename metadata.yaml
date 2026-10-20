@@ -1,7 +1,7 @@
 name: astrbot_plugin_reply_trim
 display_name: 回复整形（去空白 + 分段发送）
 author: q1w2e3r4t5y6658
-version: 1.6.3
+version: 1.6.4
 short_desc: 去掉回复首尾空白，并按标点把长回复拆成几条依次发出
 desc: |
   把机器人的一条回复整理成更像真人聊天的形式：

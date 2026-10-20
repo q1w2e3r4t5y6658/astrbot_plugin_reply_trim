@@ -60,7 +60,7 @@ def _seg_len(seg: str) -> int:
     "astrbot_plugin_reply_trim",
     "q1w2e3r4t5y6658",
     "去首尾空白 + 按「。？！」与换行分段发送；极短语气行并到下一条前，括号动作并到台词前",
-    "1.6.3",
+    "1.6.4",
     "https://github.com/q1w2e3r4t5y6658/astrbot_plugin_reply_trim",
 )
 class ReplyTrimPlugin(Star):
@@ -444,6 +444,11 @@ class ReplyTrimPlugin(Star):
             int(self._cfg("line_split_min_len", 24) or 0),
         )
         if len(segments) <= 1:
+            # 只有一段也要把清好的文本写回去：否则单行回复的句尾「。」「！」
+            # 永远删不掉（之前这里直接 return，清理结果被丢掉）
+            one = segments[0] if segments else ""
+            if one and one != text:
+                result.chain = [Plain(one)]
             return
 
         first, follow_up = segments[0], segments[1:]
