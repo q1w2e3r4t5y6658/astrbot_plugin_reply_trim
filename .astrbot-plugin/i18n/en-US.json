@@ -46,10 +46,10 @@
       "description": "Do not split when the whole reply is shorter than this (and has no newline)"
     },
     "line_split_min_len": {
-      "description": "A line shorter than this is sent as one message without punctuation splitting"
+      "description": "Lines longer than this are split at 。？！; shorter lines only split at 。 and ！"
     },
     "min_segment_len": {
-      "description": "Punctuation-split fragments within one line shorter than this are attached to the next segment"
+      "description": "Sentences shorter than this are treated as short; adjacent short sentences are joined with a comma"
     },
     "tail_merge_len": {
       "description": "Only extremely short lines (at most this many real characters) are merged into the next line instead of being sent alone",

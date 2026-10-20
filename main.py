@@ -60,7 +60,7 @@ def _seg_len(seg: str) -> int:
     "astrbot_plugin_reply_trim",
     "q1w2e3r4t5y6658",
     "去首尾空白 + 按「。？！」与换行分段发送；极短语气行并到下一条前，括号动作并到台词前",
-    "1.6.6",
+    "1.7.0",
     "https://github.com/q1w2e3r4t5y6658/astrbot_plugin_reply_trim",
 )
 class ReplyTrimPlugin(Star):
@@ -183,8 +183,12 @@ class ReplyTrimPlugin(Star):
             if not block:
                 continue
             if len(block) < int(line_split_min_len):
-                # 短行整行当一句，不再按标点切碎
-                units.append(block)
+                # 短行：在「。」「！」处切开，但相邻的两个短句再用逗号连成一条
+                # （「嗯，知道了。谢谢。」→「嗯，知道了，谢谢」），长句才真的拆开
+                sents = cls._split_block(block, "。！", drop_chars, 0, protect_quotes)
+                units.extend(
+                    cls._join_short_sentences(sents, min_segment_len, drop_chars)
+                )
             else:
                 units.extend(
                     cls._split_block(
@@ -296,6 +300,40 @@ class ReplyTrimPlugin(Star):
                 continue
             out.append(unit)
         return out
+
+    @staticmethod
+    def _join_short_sentences(
+        pieces: list[str], short_len: int, drop_chars: str
+    ) -> list[str]:
+        """同一行切出来的几句话：相邻的都短就用逗号连成一条，长的自己成条。
+
+        「嗯，知道了。谢谢。……别一直盯着我看。」→「嗯，知道了，谢谢」＋「……别一直盯着我看」
+        """
+        if len(pieces) <= 1:
+            return list(pieces)
+
+        def is_short(text: str) -> bool:
+            return _plain_len(text) <= int(short_len)
+
+        out: list[str] = []
+        buf: list[str] = []
+        for piece in pieces:
+            if is_short(piece):
+                buf.append(piece)
+                continue
+            if buf:
+                out.append(ReplyTrimPlugin._join_with_comma(buf, drop_chars))
+                buf = []
+            out.append(piece)
+        if buf:
+            out.append(ReplyTrimPlugin._join_with_comma(buf, drop_chars))
+        return out or list(pieces)
+
+    @staticmethod
+    def _join_with_comma(parts: list[str], drop_chars: str) -> str:
+        """把几句话去掉句尾标点，用「，」连起来。"""
+        cleaned = [ReplyTrimPlugin._strip_drop(p, drop_chars) or p.strip() for p in parts]
+        return "，".join(cleaned)
 
     @staticmethod
     def _merge_short(units: list[str], limit: int) -> list[str]:
