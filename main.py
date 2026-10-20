@@ -60,7 +60,7 @@ def _seg_len(seg: str) -> int:
     "astrbot_plugin_reply_trim",
     "q1w2e3r4t5y6658",
     "去首尾空白 + 按「。？！」与换行分段发送；极短语气行并到下一条前，括号动作并到台词前",
-    "1.6.4",
+    "1.6.5",
     "https://github.com/q1w2e3r4t5y6658/astrbot_plugin_reply_trim",
 )
 class ReplyTrimPlugin(Star):
@@ -81,6 +81,16 @@ class ReplyTrimPlugin(Star):
             return default if value in (None, "") else value
         except Exception:  # noqa: BLE001
             return default
+
+    def _cfg_inner_drop(self) -> str:
+        """段内要删的符号（默认删句号）；显式填空字符串＝不删中间的，只删句尾。"""
+        try:
+            if self.config is None:
+                return "。"
+            value = self.config.get("drop_inner_chars", "。")
+            return "" if value is None else str(value)
+        except Exception:  # noqa: BLE001
+            return "。"
 
     def _cfg_bool(self, key: str, default: bool) -> bool:
         try:
@@ -144,6 +154,7 @@ class ReplyTrimPlugin(Star):
         protect_quotes: bool = True,
         tail_merge_len: int = 1,
         line_split_min_len: int = 24,
+        drop_inner_chars: str = "。",
     ) -> list[str]:
         """分段主流程。
 
@@ -152,6 +163,7 @@ class ReplyTrimPlugin(Star):
         这样「……唔…… / ……啾…… / ……嗯……」这种一行一声的回复不会被揉成一段，
         而「哼... / 不理你了」这种前半只是个语气词的仍会合成一条。
         整条每一行都是极短行时，退回「一行一条」，不再合并成一大段。
+        drop_inner_chars 里的符号（默认「。」）在每段内部也一并删掉。
         """
         text = str(text).replace("\r\n", "\n").replace("\r", "\n").strip()
         if not text:
@@ -190,10 +202,10 @@ class ReplyTrimPlugin(Star):
         # ④ 短行合并：只剩一两个字的语气行并到下一条前面，别单独占一条
         segments = cls._merge_short(units, tail_merge_len)
 
-        # ⑤ 每条末尾的「。」「！」「……」删掉（中间的不动）
+        # ⑤ 每条末尾的「。」「！」「……」删掉；drop_inner_chars（默认「。」）连段内的一起删
         cleaned: list[str] = []
         for seg in segments:
-            one = cls._strip_drop(seg, drop_chars)
+            one = cls._strip_drop(seg, drop_chars, drop_inner_chars)
             cleaned.append(one or seg)
         segments = cleaned
 
@@ -205,11 +217,13 @@ class ReplyTrimPlugin(Star):
         return segments
 
     @staticmethod
-    def _strip_drop(text: str, drop_chars: str) -> str:
-        """去掉句尾要删的标点（整串，比如「……」一起删）。"""
+    def _strip_drop(text: str, drop_chars: str, inner_chars: str = "") -> str:
+        """去掉要删的标点：句尾的按整串删（「……」一起），段内的按字符删。"""
         s = str(text).strip()
         while s and s[-1] in drop_chars:
             s = s[:-1].rstrip()
+        if inner_chars:
+            s = "".join(ch for ch in s if ch not in inner_chars).strip()
         return s
 
     @staticmethod
@@ -442,6 +456,7 @@ class ReplyTrimPlugin(Star):
             self._cfg_bool("protect_quotes", True),
             int(self._cfg("tail_merge_len", 1) or 0),
             int(self._cfg("line_split_min_len", 24) or 0),
+            self._cfg_inner_drop(),
         )
         if len(segments) <= 1:
             # 只有一段也要把清好的文本写回去：否则单行回复的句尾「。」「！」

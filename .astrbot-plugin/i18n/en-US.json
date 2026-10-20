@@ -38,6 +38,10 @@
       "description": "Characters removed at the end of every message",
       "hint": "Defaults remove 。 and ！; ？ is kept. Add … to also drop trailing ellipses"
     },
+    "drop_inner_chars": {
+      "description": "Characters removed anywhere inside a message, not just at the end",
+      "hint": "Defaults to 。; leave empty to only trim the end"
+    },
     "min_text_len": {
       "description": "Do not split when the whole reply is shorter than this (and has no newline)"
     },
