@@ -60,7 +60,7 @@ def _seg_len(seg: str) -> int:
     "astrbot_plugin_reply_trim",
     "q1w2e3r4t5y6658",
     "去首尾空白 + 按「。？！」与换行分段发送；极短语气行并到下一条前，括号动作并到台词前",
-    "1.6.5",
+    "1.6.6",
     "https://github.com/q1w2e3r4t5y6658/astrbot_plugin_reply_trim",
 )
 class ReplyTrimPlugin(Star):
@@ -218,12 +218,38 @@ class ReplyTrimPlugin(Star):
 
     @staticmethod
     def _strip_drop(text: str, drop_chars: str, inner_chars: str = "") -> str:
-        """去掉要删的标点：句尾的按整串删（「……」一起），段内的按字符删。"""
+        """整理标点。
+
+        - 句尾：`drop_chars` 里的字符按整串删掉（「……」一起删）
+        - 句中：`inner_chars` 里的字符换成逗号「，」；但如果它后面紧跟着
+          省略号（「。……」这种），直接删掉，不要变成「，……」
+        """
         s = str(text).strip()
         while s and s[-1] in drop_chars:
             s = s[:-1].rstrip()
         if inner_chars:
-            s = "".join(ch for ch in s if ch not in inner_chars).strip()
+            out: list[str] = []
+            i, n = 0, len(s)
+            while i < n:
+                ch = s[i]
+                if ch not in inner_chars:
+                    out.append(ch)
+                    i += 1
+                    continue
+                # 往后跳过空白，看这个标点后面跟的是什么
+                j = i + 1
+                while j < n and s[j] in " \t\u3000":
+                    j += 1
+                if j >= n or s[j] in _ELLIPSIS_CHARS:
+                    # 后面是省略号（或已经到句尾）：直接删
+                    i += 1
+                    if j < n:
+                        out.append(s[i:j])  # 保留被跳过的空白
+                        i = j
+                    continue
+                out.append("，")
+                i += 1
+            s = "".join(out).strip()
         return s
 
     @staticmethod
